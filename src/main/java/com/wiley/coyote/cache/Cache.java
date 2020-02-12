@@ -122,24 +122,32 @@ public interface Cache<K, V> {
             long numberOfGetRequests = getNumberOfGetRequests();
             long numberOfRequests = numberOfPutRequests + numberOfGetRequests;
 
-            long percentageOfPutRequests = Math.round(100.0 * numberOfPutRequests / numberOfRequests);
-            long percentageOfGetRequests = 100L - percentageOfPutRequests;
+            long percentageOfPutRequests
+                    = (numberOfRequests == 0L) ? 0L : Math.round(100.0 * numberOfPutRequests / numberOfRequests);
+            long percentageOfGetRequests
+                    = (numberOfRequests == 0L) ? 0L : 100L - percentageOfPutRequests;
 
             long numberOfInsertions = getNumberOfInsertions();
             long numberOfEvictions = getNumberOfEvictions();
             long numberOfUpdates = getNumberOfUpdates();
 
-            long percentageOfInsertions = Math.round(100.0 * numberOfInsertions / numberOfPutRequests);
-            long percentageOfEvictions = Math.round(100.0 * numberOfEvictions / numberOfInsertions);
-            long percentageOfUpdates = 100L - percentageOfInsertions;
+            long percentageOfInsertions
+                    = (numberOfPutRequests == 0L) ? 0L : Math.round(100.0 * numberOfInsertions / numberOfPutRequests);
+            long percentageOfEvictions
+                    = (numberOfInsertions == 0L) ? 0L : Math.round(100.0 * numberOfEvictions / numberOfInsertions);
+            long percentageOfUpdates
+                    = (numberOfPutRequests == 0L) ? 0L : 100L - percentageOfInsertions;
 
             long numberOfHits = getNumberOfHits();
             long numberOfNearHits = getNumberOfNearHits();
             long numberOfMisses = getNumberOfMisses();
 
-            long percentageOfHits = Math.round(100.0 * numberOfHits / numberOfGetRequests);
-            long percentageOfNearHits = Math.round(100.0 * numberOfNearHits / numberOfGetRequests);
-            long percentageOfMisses = 100L - percentageOfHits - percentageOfNearHits;
+            long percentageOfHits
+                    = (numberOfGetRequests == 0L) ? 0L : Math.round(100.0 * numberOfHits / numberOfGetRequests);
+            long percentageOfNearHits
+                    = (numberOfGetRequests == 0L) ? 0L : Math.round(100.0 * numberOfNearHits / numberOfGetRequests);
+            long percentageOfMisses
+                    = (numberOfGetRequests == 0L) ? 0L : 100L - percentageOfHits - percentageOfNearHits;
 
             System.out.printf(
                     "%s cache (max. capacity: %d):%n", getEvictionStrategy().toString(), getMaxSize()
