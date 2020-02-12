@@ -1,0 +1,68 @@
+= Wiley Coyote
+:author: Grove Pyree
+:email: grayarea@protonmail.ch
+:revdate: 2020.02.12
+:revremark: Initial revision
+:doctype: article
+// Visual
+:toc: macro
+
+++++
+<p align="center">
+<em>Excercise implementation of an in-memory cache with Java 8</em>
+</p>
+++++
+
+++++
+<p align="center">
+  <img id="wiley-coyote-logo" width="640" src="wiley-coyote.png" alt="Wiley Coyote">
+</p>
+++++
+
+This is an excercise project, written in Java 8 and built with Maven.
+It implements a non-thread-safe version of an in-memory cache for storing and retrieving Java objects.
+
+toc::[]
+
+== Usage
+
+Caches implement the `Cache` interface, and the interface also exposes a few static factory methods for constructing instances.
+
+.Example of constructing and using an LFU cache
+[source, java]
+----
+// Construct a cache object
+Cache<Integer, Object> cache = Cache.newCache(Integer.class, Object.class)
+    .setEvictionStrategy(Cache.EvictionStrategy.LFU)
+    .setMaxSize(1000)
+    .build();
+
+// or equivalently
+Cache<Integer, Object> sameCache = Cache.buildLFUCache(1000);
+
+// Put an entry into the cache
+cache.put(13, new Object());
+
+// Check if a key is mapped to an object in the cache
+boolean isCached = cache.containsKey(13);
+
+// Retrieve an object by key
+Object retrievedObject = cache.get(13);
+
+// Print human-readable cache stats into console
+cache.stats().printStats();
+
+/* Prints:
+
+LFU cache (max. capacity: 1000):
+- current size : 1
+- requests     : 2
+    - put requests : 50% (1)
+        - insertions   : 100% (1) (incl. 0% evictions (0))
+        - updates      : 0% (0)
+    - get requests : 50% (1)
+        - hits         : 100% (1)
+        - near-hits    : 0% (0)
+        - misses       : 0% (0)
+*/
+----
