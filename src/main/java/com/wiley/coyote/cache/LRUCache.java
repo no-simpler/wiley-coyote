@@ -2,7 +2,7 @@ package com.wiley.coyote.cache;
 
 import com.wiley.coyote.cache.LRUCacheDataStructureImplementation.LRUCacheEntry;
 
-public class LRUCache<K, V> extends AbstractCache<K, V> {
+class LRUCache<K, V> extends AbstractCache<K, V> {
 
     private final int MAX_SIZE;
 
@@ -28,7 +28,7 @@ public class LRUCache<K, V> extends AbstractCache<K, V> {
         }
     }
 
-    public LRUCache(int maxSize) {
+    LRUCache(int maxSize) {
         if (maxSize <= 0) {
             throw new IllegalCacheParameterException(
                     String.format("Attempted to create cache with non-positive max size (%d)", maxSize)

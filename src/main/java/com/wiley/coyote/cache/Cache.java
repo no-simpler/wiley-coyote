@@ -118,36 +118,43 @@ public interface Cache<K, V> {
         long getNumberOfUpdates();
 
         default void printStats() {
-            long puts = getNumberOfPutRequests();
-            long ins = getNumberOfInsertions();
-            long evi = getNumberOfEvictions();
-            long upd = getNumberOfUpdates();
-            long pins = Math.round(100.0 * ins / puts);
-            long pevi = Math.round(100.0 * evi / ins);
-            long pupd = 100L - pins;
-            long gets = getNumberOfGetRequests();
-            long hit = getNumberOfHits();
-            long ner = getNumberOfNearHits();
-            long mis = getNumberOfMisses();
-            long phit = Math.round(100.0 * hit / gets);
-            long pner = Math.round(100.0 * ner / gets);
-            long pmis = 100L - phit - pner;
-            long reqs = puts + gets;
-            long pputs = Math.round(100.0 * puts / reqs);
-            long pgets = 100L - pputs;
+
+            long numberOfPutRequests = getNumberOfPutRequests();
+            long numberOfGetRequests = getNumberOfGetRequests();
+            long numberOfRequests = numberOfPutRequests + numberOfGetRequests;
+
+            long percentageOfPutRequests = Math.round(100.0 * numberOfPutRequests / numberOfRequests);
+            long percentageOfGetRequests = 100L - percentageOfPutRequests;
+
+            long numberOfInsertions = getNumberOfInsertions();
+            long numberOfEvictions = getNumberOfEvictions();
+            long numberOfUpdates = getNumberOfUpdates();
+
+            long percentageOfInsertions = Math.round(100.0 * numberOfInsertions / numberOfPutRequests);
+            long percentageOfEvictions = Math.round(100.0 * numberOfEvictions / numberOfInsertions);
+            long percentageOfUpdates = 100L - percentageOfInsertions;
+
+            long numberOfHits = getNumberOfHits();
+            long numberOfNearHits = getNumberOfNearHits();
+            long numberOfMisses = getNumberOfMisses();
+
+            long percentageOfHits = Math.round(100.0 * numberOfHits / numberOfGetRequests);
+            long percentageOfNearHits = Math.round(100.0 * numberOfNearHits / numberOfGetRequests);
+            long percentageOfMisses = 100L - percentageOfHits - percentageOfNearHits;
 
             System.out.printf(
                     "%s cache (max. capacity: %d):%n", getEvictionStrategy().toString(), getMaxSize()
             );
             System.out.printf("- current size : %d%n", getSize());
-            System.out.printf("- requests     : %d%n", reqs);
-            System.out.printf("    - put requests : %d%% (%d)%n", pputs, puts);
-            System.out.printf("        - insertions   : %d%% (%d) (incl. %d%% evictions (%d))%n", pins, ins, pevi, evi);
-            System.out.printf("        - updates      : %d%% (%d)%n", pupd, upd);
-            System.out.printf("    - get requests : %d%% (%d)%n", pgets, gets);
-            System.out.printf("        - hits         : %d%% (%d)%n", phit, hit);
-            System.out.printf("        - near-hits    : %d%% (%d)%n", pner, ner);
-            System.out.printf("        - misses       : %d%% (%d)%n", pmis, mis);
+            System.out.printf("- requests     : %d%n", numberOfRequests);
+            System.out.printf("    - put requests : %d%% (%d)%n", percentageOfPutRequests, numberOfPutRequests);
+            System.out.printf("        - insertions   : %d%% (%d) (incl. %d%% evictions (%d))%n",
+                    percentageOfInsertions, numberOfInsertions, percentageOfEvictions, numberOfEvictions);
+            System.out.printf("        - updates      : %d%% (%d)%n", percentageOfUpdates, numberOfUpdates);
+            System.out.printf("    - get requests : %d%% (%d)%n", percentageOfGetRequests, numberOfGetRequests);
+            System.out.printf("        - hits         : %d%% (%d)%n", percentageOfHits, numberOfHits);
+            System.out.printf("        - near-hits    : %d%% (%d)%n", percentageOfNearHits, numberOfNearHits);
+            System.out.printf("        - misses       : %d%% (%d)%n", percentageOfMisses, numberOfMisses);
         }
     }
 
