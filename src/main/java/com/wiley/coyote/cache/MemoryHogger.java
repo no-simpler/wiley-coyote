@@ -3,8 +3,6 @@ package com.wiley.coyote.cache;
 /**
  * Represents a "heavy" resource. Upon creation, allocates a byte array of the
  * given size.
- *
- * @author Eric Sargazakov
  */
 public class MemoryHogger {
 
