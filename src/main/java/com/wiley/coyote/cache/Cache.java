@@ -15,7 +15,6 @@ package com.wiley.coyote.cache;
  *
  * @param <K>   the type of keys maintained by this cache
  * @param <V>   the type of mapped values
- * @author Eric Sargazakov
  */
 public interface Cache<K, V> {
 

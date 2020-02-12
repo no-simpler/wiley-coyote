@@ -7,8 +7,6 @@ import java.util.Random;
 
 /**
  * Main class, showcases cache implementations.
- *
- * @author Eric Sargazakov
  */
 public class CoyoteApplication {
 
