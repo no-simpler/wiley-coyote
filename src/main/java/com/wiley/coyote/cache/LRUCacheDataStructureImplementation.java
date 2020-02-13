@@ -101,8 +101,6 @@ class LRUCacheDataStructureImplementation<K, V> implements LRUCacheDataStructure
     public boolean contains(K key) {
         ensureConsistency();
         ensureContinuity();
-        if (key == null)
-            throw new CacheLogicException("Attempted to check key in DS by null key");
         return map.containsKey(key);
     }
 
