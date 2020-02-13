@@ -28,17 +28,8 @@ public class CacheBuilder<K, V> {
     }
 
     public Cache<K, V> build() {
-        Cache<K, V> instance = null;
         validateCacheParameters();
-        switch (this.evictionStrategy) {
-            case LRU:
-                instance = new LRUCache<>(maxSize);
-                break;
-            case LFU:
-                instance = new LFUCache<>(maxSize);
-                break;
-        }
-        return instance;
+        return new BasicCache<>(maxSize, evictionStrategy);
     }
 
     private void validateCacheParameters() {
