@@ -1,8 +1,8 @@
 package com.wiley.coyote.cache;
 
 /**
- * Represents a "heavy" resource. Upon creation, allocates a byte array of the
- * given size.
+ * Represents an in-memory resource. Upon creation, allocates a byte array of
+ * the given size.
  */
 public class MemoryHogger {
 

@@ -5,15 +5,35 @@ import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
 
+/**
+ * The LFU cache data structure that provides constant-time implementation of
+ * the standard CRUD operations.
+ * <p>
+ * The implementation encapsulates key-value mappings in Entries, which also
+ * contain a frequency node. A doubly-linked list of all frequency nodes is
+ * maintained, ordered by frequency value. Whenever a frequency becomes unused,
+ * its node is removed from the list and all related maps.
+ * <p>
+ * Three hash maps are maintained:
+ * <p><ul>
+ * <li>A hash map that maps a key to its entry.</li>
+ * <li>A hash map that maps a frequency value to a list of keys that use that
+ * frequency.</li>
+ * <li>A hash map that maps a frequency value to its frequency node.</li>
+ * </ul>
+ *
+ * @param <K>   the key type
+ * @param <V>   the value type
+ */
 class LFUCacheDataStructureImplementation<K, V> implements LFUCacheDataStructure<K, V> {
 
     private final boolean DEBUG_MODE = false;
 
-    private final Map<K, LFUCacheEntry<K, V>> map;
+    private final Map<K, LFUCacheEntry<K, V>> mapKeyToEntry;
 
-    private final Map<Long, LinkedHashSet<K>> keysPerFrequency;
+    private final Map<Long, LinkedHashSet<K>> mapFrequencyToKeys;
 
-    private final Map<Long, LFUCacheEntryFrequency> nodePerFrequency;
+    private final Map<Long, LFUCacheEntryFrequency> mapFrequencyToNode;
 
     private LFUCacheEntryFrequency minFrequency;
 
@@ -66,9 +86,9 @@ class LFUCacheDataStructureImplementation<K, V> implements LFUCacheDataStructure
     }
 
     LFUCacheDataStructureImplementation(int maxSize) {
-        map = new HashMap<>(maxSize);
-        keysPerFrequency = new HashMap<>();
-        nodePerFrequency = new HashMap<>();
+        mapKeyToEntry = new HashMap<>(maxSize);
+        mapFrequencyToKeys = new HashMap<>();
+        mapFrequencyToNode = new HashMap<>();
         maxFrequency = null;
         minFrequency = null;
         numberOfFrequencies = 0;
@@ -76,13 +96,13 @@ class LFUCacheDataStructureImplementation<K, V> implements LFUCacheDataStructure
 
     @Override
     public int getSize() {
-        return map.size();
+        return mapKeyToEntry.size();
     }
 
     @Override
     public void add(LFUCacheEntry<K, V> newEntry) {
         if (DEBUG_MODE)
-            System.out.printf("Size %d (%df). Adding key %s.%n", map.size(), numberOfFrequencies, newEntry.key);
+            System.out.printf("Size %d (%df). Adding key %s.%n", mapKeyToEntry.size(), numberOfFrequencies, newEntry.key);
         ensureConsistency();
         ensureEntryIsAddable(newEntry);
 
@@ -96,11 +116,11 @@ class LFUCacheDataStructureImplementation<K, V> implements LFUCacheDataStructure
             maxFrequency = newEntry.frequency;
 
             // Ensure frequency node is tracked
-            nodePerFrequency.put(newEntry.frequency.value, newEntry.frequency);
+            mapFrequencyToNode.put(newEntry.frequency.value, newEntry.frequency);
             ++numberOfFrequencies;
-        } else if (nodePerFrequency.containsKey(1L)) {
+        } else if (mapFrequencyToNode.containsKey(1L)) {
             // Add to pre-existing entries with frequency 1
-            newEntry.setFrequency(nodePerFrequency.get(1L));
+            newEntry.setFrequency(mapFrequencyToNode.get(1L));
         } else {
             // Add as first entry with frequency 1 (there are others)
             newEntry.setFrequency(new LFUCacheEntryFrequency());
@@ -113,37 +133,37 @@ class LFUCacheDataStructureImplementation<K, V> implements LFUCacheDataStructure
             temp.left = minFrequency;
 
             // Ensure frequency node is tracked
-            nodePerFrequency.put(newEntry.frequency.value, newEntry.frequency);
+            mapFrequencyToNode.put(newEntry.frequency.value, newEntry.frequency);
             ++numberOfFrequencies;
         }
 
         // Add new key, creating fresh sets as necessary
-        if (!keysPerFrequency.containsKey(newEntry.frequency.value)) {
-            keysPerFrequency.put(newEntry.frequency.value, new LinkedHashSet<>());
+        if (!mapFrequencyToKeys.containsKey(newEntry.frequency.value)) {
+            mapFrequencyToKeys.put(newEntry.frequency.value, new LinkedHashSet<>());
         }
-        keysPerFrequency.get(newEntry.frequency.value).add(newEntry.key);
+        mapFrequencyToKeys.get(newEntry.frequency.value).add(newEntry.key);
 
         // Track entry itself
-        map.put(newEntry.key, newEntry);
+        mapKeyToEntry.put(newEntry.key, newEntry);
         ensureContinuity();
     }
 
     @Override
     public void remove(LFUCacheEntry<K, V> entry) {
         if (DEBUG_MODE)
-            System.out.printf("Size %d (%df). Removing key %s.%n", map.size(), numberOfFrequencies, entry.key);
+            System.out.printf("Size %d (%df). Removing key %s.%n", mapKeyToEntry.size(), numberOfFrequencies, entry.key);
         ensureConsistency();
         ensureEntryIsRemovable(entry);
 
         // Untrack entry's key
-        map.remove(entry.key);
-        keysPerFrequency.get(entry.frequency.value).remove(entry.key);
+        mapKeyToEntry.remove(entry.key);
+        mapFrequencyToKeys.get(entry.frequency.value).remove(entry.key);
 
         // If removed last key of a frequency, vacate that frequency
-        if (keysPerFrequency.get(entry.frequency.value).size() == 0) {
+        if (mapFrequencyToKeys.get(entry.frequency.value).size() == 0) {
             // Untrack frequency
-            keysPerFrequency.remove(entry.frequency.value);
-            nodePerFrequency.remove(entry.frequency.value);
+            mapFrequencyToKeys.remove(entry.frequency.value);
+            mapFrequencyToNode.remove(entry.frequency.value);
             --numberOfFrequencies;
 
             // Break and re-stitch linked list of frequencies
@@ -165,13 +185,13 @@ class LFUCacheDataStructureImplementation<K, V> implements LFUCacheDataStructure
     @Override
     public void incrementFrequency(LFUCacheEntry<K, V> entry) {
         if (DEBUG_MODE)
-            System.out.printf("Size %d (%df). Incrementing key %s.", map.size(), numberOfFrequencies, entry.key);
+            System.out.printf("Size %d (%df). Incrementing key %s.", mapKeyToEntry.size(), numberOfFrequencies, entry.key);
         ensureConsistency();
         ensureEntryIsIncrementable(entry);
 
         // Establish mode of operation
-        boolean vacatingPreviousFrequency = (keysPerFrequency.get(entry.frequency.value).size() == 1);
-        boolean movingToOccupiedFrequency = nodePerFrequency.containsKey(entry.frequency.value + 1);
+        boolean vacatingPreviousFrequency = (mapFrequencyToKeys.get(entry.frequency.value).size() == 1);
+        boolean movingToOccupiedFrequency = mapFrequencyToNode.containsKey(entry.frequency.value + 1);
 
         // Depending on mode, perform excellently
         if (vacatingPreviousFrequency && movingToOccupiedFrequency)     vacateOldAndJoinNew(entry);
@@ -189,11 +209,11 @@ class LFUCacheDataStructureImplementation<K, V> implements LFUCacheDataStructure
         if (DEBUG_MODE) System.out.printf(" (vacating %d -> creating %d)%n", oldFrequency.value, newFrequency.value);
 
         // Untrack key at old frequency
-        keysPerFrequency.get(oldFrequency.value).remove(entry.key);
-        keysPerFrequency.remove(oldFrequency.value);
+        mapFrequencyToKeys.get(oldFrequency.value).remove(entry.key);
+        mapFrequencyToKeys.remove(oldFrequency.value);
 
         // Untrack old frequency
-        nodePerFrequency.remove(oldFrequency.value);
+        mapFrequencyToNode.remove(oldFrequency.value);
 
         // Break and re-stitch linked list of frequencies
         newFrequency.left = oldFrequency.left;
@@ -211,27 +231,27 @@ class LFUCacheDataStructureImplementation<K, V> implements LFUCacheDataStructure
         entry.setFrequency(newFrequency);
 
         // Track new frequency
-        nodePerFrequency.put(newFrequency.value, newFrequency);
+        mapFrequencyToNode.put(newFrequency.value, newFrequency);
 
         // Track key at new frequency
-        keysPerFrequency.put(newFrequency.value, new LinkedHashSet<>());
-        keysPerFrequency.get(newFrequency.value).add(entry.key);
+        mapFrequencyToKeys.put(newFrequency.value, new LinkedHashSet<>());
+        mapFrequencyToKeys.get(newFrequency.value).add(entry.key);
     }
 
     private void vacateOldAndJoinNew(LFUCacheEntry<K, V> entry) {
         // Extract old and new frequencies
         LFUCacheEntryFrequency oldFrequency = entry.frequency;
-        LFUCacheEntryFrequency newFrequency = nodePerFrequency.get(entry.frequency.value + 1);
+        LFUCacheEntryFrequency newFrequency = mapFrequencyToNode.get(entry.frequency.value + 1);
         if (DEBUG_MODE)
             System.out.printf(" (vacating %d -> joining %d)%n", oldFrequency.value, newFrequency.value);
         ensureNeighborlyLinks(entry);
 
         // Untrack key at old frequency
-        keysPerFrequency.get(oldFrequency.value).remove(entry.key);
-        keysPerFrequency.remove(oldFrequency.value);
+        mapFrequencyToKeys.get(oldFrequency.value).remove(entry.key);
+        mapFrequencyToKeys.remove(oldFrequency.value);
 
         // Untrack old frequency
-        nodePerFrequency.remove(oldFrequency.value);
+        mapFrequencyToNode.remove(oldFrequency.value);
 
         // Break and re-stitch linked list of frequencies
         if (oldFrequency.left != null) oldFrequency.left.right = newFrequency;
@@ -249,7 +269,7 @@ class LFUCacheDataStructureImplementation<K, V> implements LFUCacheDataStructure
         entry.setFrequency(newFrequency);
 
         // Track key at new frequency
-        keysPerFrequency.get(newFrequency.value).add(entry.key);
+        mapFrequencyToKeys.get(newFrequency.value).add(entry.key);
     }
 
     private void leaveOldAndCreateNew(LFUCacheEntry<K, V> entry) {
@@ -259,7 +279,7 @@ class LFUCacheDataStructureImplementation<K, V> implements LFUCacheDataStructure
         if (DEBUG_MODE) System.out.printf(" (leaving %d -> creating %d)%n", oldFrequency.value, newFrequency.value);
 
         // Untrack key at old frequency
-        keysPerFrequency.get(oldFrequency.value).remove(entry.key);
+        mapFrequencyToKeys.get(oldFrequency.value).remove(entry.key);
 
         // Break and re-stitch linked list of frequencies
         if (oldFrequency.right != null) {
@@ -279,28 +299,28 @@ class LFUCacheDataStructureImplementation<K, V> implements LFUCacheDataStructure
         entry.setFrequency(newFrequency);
 
         // Track new frequency
-        nodePerFrequency.put(newFrequency.value, newFrequency);
+        mapFrequencyToNode.put(newFrequency.value, newFrequency);
 
         // Track key at new frequency
-        keysPerFrequency.put(newFrequency.value, new LinkedHashSet<>());
-        keysPerFrequency.get(newFrequency.value).add(entry.key);
+        mapFrequencyToKeys.put(newFrequency.value, new LinkedHashSet<>());
+        mapFrequencyToKeys.get(newFrequency.value).add(entry.key);
     }
 
     private void leaveOldAndJoinNew(LFUCacheEntry<K, V> entry) {
         // Extract old and new frequencies
         LFUCacheEntryFrequency oldFrequency = entry.frequency;
-        LFUCacheEntryFrequency newFrequency = nodePerFrequency.get(entry.frequency.value + 1);
+        LFUCacheEntryFrequency newFrequency = mapFrequencyToNode.get(entry.frequency.value + 1);
         if (DEBUG_MODE) System.out.printf(" (leaving %d -> joining %d)%n", oldFrequency.value, newFrequency.value);
         ensureNeighborlyLinks(entry);
 
         // Untrack key at old frequency
-        keysPerFrequency.get(oldFrequency.value).remove(entry.key);
+        mapFrequencyToKeys.get(oldFrequency.value).remove(entry.key);
 
         // Inject new frequency
         entry.setFrequency(newFrequency);
 
         // Track key at new frequency
-        keysPerFrequency.get(newFrequency.value).add(entry.key);
+        mapFrequencyToKeys.get(newFrequency.value).add(entry.key);
     }
 
     @Override
@@ -309,7 +329,7 @@ class LFUCacheDataStructureImplementation<K, V> implements LFUCacheDataStructure
             throw new CacheLogicException("Attempted to remove least frequent value from empty DS");
         LinkedHashSet<K> keysAtMinFrequency;
         try {
-            keysAtMinFrequency = keysPerFrequency.get(minFrequency.value);
+            keysAtMinFrequency = mapFrequencyToKeys.get(minFrequency.value);
         } catch (NullPointerException exception) {
             throw new CacheLogicException(
                     "Attempted to remove least frequent value from DS without least frequent values", exception
@@ -322,14 +342,14 @@ class LFUCacheDataStructureImplementation<K, V> implements LFUCacheDataStructure
     public boolean contains(K key) {
         ensureConsistency();
         ensureContinuity();
-        return map.containsKey(key);
+        return mapKeyToEntry.containsKey(key);
     }
 
     @Override
     public LFUCacheEntry<K, V> get(K key) {
         LFUCacheEntry<K, V> entry = null;
         if (contains(key)) {
-            entry = map.get(key);
+            entry = mapKeyToEntry.get(key);
             if (entry == null)
                 throw new CacheLogicException("DS contains null entry despite not allowing it");
         }
@@ -339,13 +359,13 @@ class LFUCacheDataStructureImplementation<K, V> implements LFUCacheDataStructure
     private void ensureEntryIsAddable(LFUCacheEntry<K, V> entry) {
         if (entry == null)
             throw new CacheLogicException("Attempted to add null entry to DS");
-        if (map.containsKey(entry.key))
+        if (mapKeyToEntry.containsKey(entry.key))
             throw new CacheLogicException("Attempted to add key that is already recorded in DS");
         if (entry.frequency != null)
             throw new CacheLogicException("Attempted to add entry with non-null frequency to DS");
-        if (keysPerFrequency.containsKey(1L) && keysPerFrequency.get(1L) == null)
+        if (mapFrequencyToKeys.containsKey(1L) && mapFrequencyToKeys.get(1L) == null)
             throw new CacheLogicException("Attempted to increment frequency into an existing null key set");
-        if (nodePerFrequency.containsKey(1L) && nodePerFrequency.get(1L) == null)
+        if (mapFrequencyToNode.containsKey(1L) && mapFrequencyToNode.get(1L) == null)
             throw new CacheLogicException("Attempted to increment frequency into an existing null node");
 
     }
@@ -353,49 +373,49 @@ class LFUCacheDataStructureImplementation<K, V> implements LFUCacheDataStructure
     private void ensureEntryIsRemovable(LFUCacheEntry<K, V> entry) {
         if (entry == null)
             throw new CacheLogicException("Attempted to remove null entry from DS");
-        if (map.size() == 0)
+        if (mapKeyToEntry.size() == 0)
             throw new CacheLogicException("Attempted to remove from zero-size DS");
-        if (!map.containsKey(entry.key))
+        if (!mapKeyToEntry.containsKey(entry.key))
             throw new CacheLogicException("Attempted to remove entry that is not recorded in DS");
-        if (!keysPerFrequency.containsKey(entry.frequency.value)
-                || !nodePerFrequency.containsKey(entry.frequency.value)) {
+        if (!mapFrequencyToKeys.containsKey(entry.frequency.value)
+                || !mapFrequencyToNode.containsKey(entry.frequency.value)) {
             throw new CacheLogicException("Attempted to remove entry with frequency not recorded in DS");
         }
-        if (keysPerFrequency.get(entry.frequency.value) == null)
+        if (mapFrequencyToKeys.get(entry.frequency.value) == null)
             throw new CacheLogicException("Attempted to remove entry with frequency without stored keys");
-        if (!keysPerFrequency.get(entry.frequency.value).contains(entry.key))
+        if (!mapFrequencyToKeys.get(entry.frequency.value).contains(entry.key))
             throw new CacheLogicException("Attempted to remove entry with frequency without stored entry key");
-        if (nodePerFrequency.get(entry.frequency.value) == null)
+        if (mapFrequencyToNode.get(entry.frequency.value) == null)
             throw new CacheLogicException("Attempted to remove entry with frequency without stored node");
     }
 
     private void ensureEntryIsIncrementable(LFUCacheEntry<K, V> entry) {
         if (entry == null)
             throw new CacheLogicException("Attempted to increment null entry from DS");
-        if (map.size() == 0)
+        if (mapKeyToEntry.size() == 0)
             throw new CacheLogicException("Attempted to increment entry in zero-size DS");
-        if (!map.containsKey(entry.key))
+        if (!mapKeyToEntry.containsKey(entry.key))
             throw new CacheLogicException("Attempted to increment entry that is not recorded in DS");
-        if (!keysPerFrequency.containsKey(entry.frequency.value)
-                || !nodePerFrequency.containsKey(entry.frequency.value)) {
+        if (!mapFrequencyToKeys.containsKey(entry.frequency.value)
+                || !mapFrequencyToNode.containsKey(entry.frequency.value)) {
             throw new CacheLogicException("Attempted to increment entry with frequency not recorded in DS");
         }
-        if (keysPerFrequency.get(entry.frequency.value) == null)
+        if (mapFrequencyToKeys.get(entry.frequency.value) == null)
             throw new CacheLogicException("Attempted to increment frequency without stored keys");
-        if (!keysPerFrequency.get(entry.frequency.value).contains(entry.key))
+        if (!mapFrequencyToKeys.get(entry.frequency.value).contains(entry.key))
             throw new CacheLogicException("Attempted to increment frequency without stored entry key");
-        if (nodePerFrequency.get(entry.frequency.value) == null)
+        if (mapFrequencyToNode.get(entry.frequency.value) == null)
             throw new CacheLogicException("Attempted to increment frequency without stored node");
-        if (keysPerFrequency.containsKey(entry.frequency.value + 1)
-                && keysPerFrequency.get(entry.frequency.value + 1) == null)
+        if (mapFrequencyToKeys.containsKey(entry.frequency.value + 1)
+                && mapFrequencyToKeys.get(entry.frequency.value + 1) == null)
             throw new CacheLogicException("Attempted to increment frequency into an existing null key set");
-        if (nodePerFrequency.containsKey(entry.frequency.value + 1)
-                && nodePerFrequency.get(entry.frequency.value + 1) == null)
+        if (mapFrequencyToNode.containsKey(entry.frequency.value + 1)
+                && mapFrequencyToNode.get(entry.frequency.value + 1) == null)
             throw new CacheLogicException("Attempted to increment frequency into an existing null node");
     }
 
     private void ensureNeighborlyLinks(LFUCacheEntry<K, V> entry) {
-        LFUCacheEntryFrequency supposedRightNeighbor = nodePerFrequency.get(entry.frequency.value + 1);
+        LFUCacheEntryFrequency supposedRightNeighbor = mapFrequencyToNode.get(entry.frequency.value + 1);
         boolean lTR = entry.frequency.right == supposedRightNeighbor;
         boolean rTL = supposedRightNeighbor.left == entry.frequency;
         if (!lTR && !rTL)
@@ -421,20 +441,20 @@ class LFUCacheDataStructureImplementation<K, V> implements LFUCacheDataStructure
     private void ensureConsistency() {
         if (numberOfFrequencies < 0)
             throw new CacheLogicException("DS registers negative number of frequencies");
-        if (numberOfFrequencies == 0 && map.size() != 0) {
+        if (numberOfFrequencies == 0 && mapKeyToEntry.size() != 0) {
             throw new CacheLogicException("DS contains entries but not frequencies");
         }
-        if (numberOfFrequencies != keysPerFrequency.size())
+        if (numberOfFrequencies != mapFrequencyToKeys.size())
             throw new CacheLogicException(String.format(
                     "Sizes of map (freq-keys) and DLL within DS do not match (%d != %d)",
-                    numberOfFrequencies, keysPerFrequency.size()
+                    numberOfFrequencies, mapFrequencyToKeys.size()
             ));
-        if (numberOfFrequencies != nodePerFrequency.size())
+        if (numberOfFrequencies != mapFrequencyToNode.size())
             throw new CacheLogicException(String.format(
                     "Sizes of map (freq-node) and DLL within DS do not match (%d != %d)",
-                    numberOfFrequencies, nodePerFrequency.size()
+                    numberOfFrequencies, mapFrequencyToNode.size()
             ));
-        if (numberOfFrequencies > map.size())
+        if (numberOfFrequencies > mapKeyToEntry.size())
             throw new CacheLogicException("DS registers more frequencies than values");
         if (numberOfFrequencies > 0 && (minFrequency == null || maxFrequency == null))
             throw new CacheLogicException("Non-empty DS has null minFrequency/maxFrequency");
@@ -442,9 +462,9 @@ class LFUCacheDataStructureImplementation<K, V> implements LFUCacheDataStructure
             throw new CacheLogicException("Empty DS has non-null minFrequency/maxFrequency");
         if (numberOfFrequencies > 0 && (minFrequency.left != null || maxFrequency.right != null))
             throw new CacheLogicException("Non-empty DS has non-terminal minFrequency/maxFrequency");
-        if (keysPerFrequency.containsKey(0L))
+        if (mapFrequencyToKeys.containsKey(0L))
             throw new CacheLogicException("Map (freq-keys) within DS contain keys for frequency zero");
-        if (nodePerFrequency.containsKey(0L))
+        if (mapFrequencyToNode.containsKey(0L))
             throw new CacheLogicException("Map (freq-node) within DS contain node for frequency zero");
     }
 
@@ -471,12 +491,12 @@ class LFUCacheDataStructureImplementation<K, V> implements LFUCacheDataStructure
             if (size < numberOfFrequencies)
                 throw new CacheLogicException(String.format(
                         "DLL within non-empty DS is shorter than recorded (%d < %d/%d/%d)",
-                        size, numberOfFrequencies, keysPerFrequency.size(), nodePerFrequency.size()
+                        size, numberOfFrequencies, mapFrequencyToKeys.size(), mapFrequencyToNode.size()
                         ));
             if (size > numberOfFrequencies)
                 throw new CacheLogicException(String.format(
                         "DLL within non-empty DS is longer than recorded (%d > %d/%d/%d)",
-                        size, numberOfFrequencies, keysPerFrequency.size(), nodePerFrequency.size()
+                        size, numberOfFrequencies, mapFrequencyToKeys.size(), mapFrequencyToNode.size()
                         ));
         }
     }

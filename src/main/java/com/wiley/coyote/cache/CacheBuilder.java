@@ -1,5 +1,12 @@
 package com.wiley.coyote.cache;
 
+/**
+ * The mutable builder of the various implementations of the {@link Cache}
+ * interface.
+ *
+ * @param <K>   the key type
+ * @param <V>   the value type
+ */
 public class CacheBuilder<K, V> {
 
     private Cache.EvictionStrategy evictionStrategy = Cache.DEFAULT_EVICTION_STRATEGY;
