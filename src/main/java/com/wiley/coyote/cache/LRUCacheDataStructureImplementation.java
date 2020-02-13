@@ -23,135 +23,222 @@ class LRUCacheDataStructureImplementation<K, V> implements LRUCacheDataStructure
 
     private final Map<K, LRUCacheEntry<K, V>> mapKeyToEntry;
 
-    private LRUCacheEntry<K, V> head;
+    private LRUCacheEntry<K, V> newestEntry;
 
-    private LRUCacheEntry<K, V> tail;
+    private LRUCacheEntry<K, V> oldestEntry;
 
-    private int size;
+    private int numberOfEntries;
 
-    static class LRUCacheEntry<K, V> {
+    private static class LRUCacheEntry<K, V> {
         private final K key;
-        private final SoftReference<V> value;
+        private SoftReference<V> value;
         private LRUCacheEntry<K, V> left;
         private LRUCacheEntry<K, V> right;
 
-        LRUCacheEntry(K key, V value) {
+        private LRUCacheEntry(K key, V value) {
             this.key = key;
             this.value = new SoftReference<>(value);
             this.left = null;
             this.right = null;
         }
 
-        V getValue() {
+        private V getValue() {
             return value.get();
+        }
+
+        private void setValue(V value) {
+            this.value = new SoftReference<>(value);
         }
     }
 
     LRUCacheDataStructureImplementation(int maxSize) {
         mapKeyToEntry = new HashMap<>(maxSize);
-        head = null;
-        tail = null;
-        size = 0;
+        newestEntry = null;
+        oldestEntry = null;
+        numberOfEntries = 0;
     }
 
     @Override
     public int getSize() {
-        return size;
+        return numberOfEntries;
     }
 
     @Override
-    public void addFirst(LRUCacheEntry<K, V> newEntry) {
+    public void addFresh(K key, V value) {
+        if (DEBUG_MODE) System.out.printf("Size %d. Adding key %s.%n", mapKeyToEntry.size(), key);
         ensureConsistency();
-        if (newEntry == null)
-            throw new CacheLogicException("Attempted to add null entry to DS");
-        if (mapKeyToEntry.containsKey(newEntry.key))
-            throw new CacheLogicException("Attempted to add entry that is already recorded in DS");
-        if (size == 0) {
-            head = newEntry;
-            tail = newEntry;
+        ensureKeyIsAddable(key);
+
+        LRUCacheEntry<K, V> newEntry = new LRUCacheEntry<>(key, value);
+
+        if (numberOfEntries == 0) {
+            newestEntry = newEntry;
+            oldestEntry = newEntry;
         } else {
-            LRUCacheEntry<K, V> temp = head;
-            head = newEntry;
+            LRUCacheEntry<K, V> temp = newestEntry;
+            newestEntry = newEntry;
             newEntry.left = null;
             newEntry.right = temp;
             if (temp != null) temp.left = newEntry;
         }
         mapKeyToEntry.put(newEntry.key, newEntry);
-        ++size;
+        ++numberOfEntries;
+
         ensureContinuity();
     }
 
     @Override
-    public void remove(LRUCacheEntry<K, V> entry) {
+    public void replaceValue(K key, V value) {
+        if (DEBUG_MODE) System.out.printf("Size %d. Updating key %s.%n", mapKeyToEntry.size(), key);
         ensureConsistency();
-        if (entry == null)
-            throw new CacheLogicException("Attempted to remove null entry from DS");
-        if (size == 0)
-            throw new CacheLogicException("Attempted to remove from zero-size DS");
-        if (!mapKeyToEntry.containsKey(entry.key))
-            throw new CacheLogicException("Attempted to remove entry that is not recorded in DS");
+        ensureKeyIsUpdatable(key);
+
+        // Inject new value
+        LRUCacheEntry<K, V> entry = mapKeyToEntry.get(key);
+        entry.setValue(value);
+    }
+
+    @Override
+    public void remove(K key) {
+        if (DEBUG_MODE) System.out.printf("Size %d. Removing key %s.%n", mapKeyToEntry.size(), key);
+        ensureConsistency();
+        ensureKeyIsRemovable(key);
+
+        LRUCacheEntry<K, V> entry = mapKeyToEntry.get(key);
+
         LRUCacheEntry<K, V> leftNeighbor = entry.left;
         LRUCacheEntry<K, V> rightNeighbor = entry.right;
         if (leftNeighbor != null) leftNeighbor.right = rightNeighbor;
         if (rightNeighbor != null) rightNeighbor.left = leftNeighbor;
-        if (entry == head) head = rightNeighbor;
-        if (entry == tail) tail = leftNeighbor;
+        if (entry == newestEntry) newestEntry = rightNeighbor;
+        if (entry == oldestEntry) oldestEntry = leftNeighbor;
         entry.left = null;
         entry.right = null;
         mapKeyToEntry.remove(entry.key);
-        --size;
-        if (mapKeyToEntry.size() != size)
-            throw new CacheLogicException("Mismatched DS size after removal of entry");
+        --numberOfEntries;
+
         ensureContinuity();
     }
 
     @Override
-    public void removeLast() {
-        remove(tail);
+    public void makeMostRecent(K key) {
+        if (DEBUG_MODE) System.out.printf("Size %d. Elevating key %s.%n", mapKeyToEntry.size(), key);
+        ensureConsistency();
+        ensureKeyIsElevatable(key);
+        if (numberOfEntries == 1) return;
+
+        LRUCacheEntry<K, V> entry = mapKeyToEntry.get(key);
+
+        // Remove entry from the list and re-stitch the list
+        LRUCacheEntry<K, V> leftNeighbor = entry.left;
+        LRUCacheEntry<K, V> rightNeighbor = entry.right;
+        if (leftNeighbor != null) leftNeighbor.right = rightNeighbor;
+        if (rightNeighbor != null) rightNeighbor.left = leftNeighbor;
+        if (entry == newestEntry) newestEntry = rightNeighbor;
+        if (entry == oldestEntry) oldestEntry = leftNeighbor;
+
+        // Put entry to the top of the list
+        LRUCacheEntry<K, V> temp = newestEntry;
+        newestEntry = entry;
+        entry.left = null;
+        entry.right = temp;
+        if (temp != null) temp.left = entry;
+
+        ensureContinuity();
+    }
+
+    @Override
+    public void removeLeastRecent() {
+        remove(oldestEntry.key);
     }
 
     @Override
     public boolean contains(K key) {
-        ensureConsistency();
-        ensureContinuity();
         return mapKeyToEntry.containsKey(key);
     }
 
     @Override
-    public LRUCacheEntry<K, V> get(K key) {
-        LRUCacheEntry<K, V> entry = null;
+    public V get(K key) {
+        V value = null;
         if (contains(key)) {
-            entry = mapKeyToEntry.get(key);
+            LRUCacheEntry<K, V> entry = mapKeyToEntry.get(key);
             if (entry == null)
                 throw new CacheLogicException("DS contains null entry despite not allowing it");
+            value = entry.getValue();
         }
-        return entry;
+        return value;
+    }
+
+    private void ensureKeyIsAddable(K key) {
+        if (mapKeyToEntry.containsKey(key))
+            throw new CacheLogicException("Attempted to add key that is already recorded in DS");
+    }
+
+    private void ensureKeyIsUpdatable(K key) {
+        if (mapKeyToEntry.size() == 0)
+            throw new CacheLogicException("Attempted to update in zero-size DS");
+        if (!mapKeyToEntry.containsKey(key))
+            throw new CacheLogicException("Attempted to update entry that is not recorded in DS");
+        LRUCacheEntry<K, V> entry = mapKeyToEntry.get(key);
+        if (entry == null)
+            throw new CacheLogicException("Attempted to update entry that is mapped to null in DS");
+    }
+
+    private void ensureKeyIsRemovable(K key) {
+        if (mapKeyToEntry.size() == 0)
+            throw new CacheLogicException("Attempted to remove from zero-size DS");
+        if (!mapKeyToEntry.containsKey(key))
+            throw new CacheLogicException("Attempted to remove entry that is not recorded in DS");
+        LRUCacheEntry<K, V> entry = mapKeyToEntry.get(key);
+        if (entry == null)
+            throw new CacheLogicException("Attempted to remove entry that is mapped to null in DS");
+    }
+
+    private void ensureKeyIsElevatable(K key) {
+        if (mapKeyToEntry.size() == 0)
+            throw new CacheLogicException("Attempted to elevate entry in zero-size DS");
+        if (!mapKeyToEntry.containsKey(key))
+            throw new CacheLogicException("Attempted to elevate entry that is not recorded in DS");
+        LRUCacheEntry<K, V> entry = mapKeyToEntry.get(key);
+        if (entry == null)
+            throw new CacheLogicException("Attempted to elevate entry that is mapped to null in DS");
     }
 
     private void ensureConsistency() {
-        if (size < 0)
+        if (numberOfEntries < 0)
             throw new CacheLogicException("Size of DS is negative");
-        if (size != mapKeyToEntry.size())
+        if (numberOfEntries != mapKeyToEntry.size())
             throw new CacheLogicException("Sizes of map and DLL within DS do not match");
-        if (size > 0 && (head == null || tail == null))
+        if (numberOfEntries > 0 && (newestEntry == null || oldestEntry == null))
             throw new CacheLogicException("Non-empty DS has null head/tail");
-        if (size > 0 && (head.left != null || tail.right != null))
+        if (numberOfEntries > 0 && (newestEntry.left != null || oldestEntry.right != null))
             throw new CacheLogicException("Non-empty DS has non-terminal head/tail");
     }
 
     private void ensureContinuity() {
         if (!DEBUG_MODE) return;
-        LRUCacheEntry<K, V> temp = head;
-        int counter = size + 1;
+        LRUCacheEntry<K, V> temp = newestEntry;
+        int counter = numberOfEntries + 100;
+        int size = 0;
         if (temp != null) {
+            ++size;
             while (temp.right != null && counter > 0) {
                 temp = temp.right;
+                ++size;
                 --counter;
             }
             if (counter == 0)
                 throw new CacheLogicException("DLL within non-empty DS likely contains loops");
-            if (! temp.equals(tail))
-                throw new CacheLogicException("DLL within non-empty DS is not continuous between head and tail");
+            if (! temp.equals(oldestEntry))
+                throw new CacheLogicException("DLL within non-empty DS is not continuous");
+            if (size < numberOfEntries)
+                throw new CacheLogicException(String.format(
+                        "DLL within non-empty DS is shorter than recorded (%d < %d)", size, numberOfEntries
+                ));
+            if (size > numberOfEntries)
+                throw new CacheLogicException(String.format(
+                        "DLL within non-empty DS is longer than recorded (%d > %d)", size, numberOfEntries
+                ));
         }
     }
 }

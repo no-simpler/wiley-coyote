@@ -1,7 +1,5 @@
 package com.wiley.coyote.cache;
 
-import com.wiley.coyote.cache.LFUCacheDataStructureImplementation.LFUCacheEntry;
-
 /**
  * Implements an in-memory cache employing the LFU (least frequently used)
  * eviction strategy.
@@ -76,19 +74,17 @@ class LFUCache<K, V> extends AbstractCache<K, V> {
         V previousValue = null;
 
         if (dataStructure.contains(key)) {
-            LFUCacheEntry<K, V> entry = dataStructure.get(key);
-            previousValue = entry.getValue();
-
-            entry.setValue(value);
-
-            dataStructure.incrementFrequency(entry);
+            // Key already mapped; update value
+            previousValue = dataStructure.get(key);
+            dataStructure.replaceValue(key, value);
             registerUpdate();
         } else {
+            // Key is not mapped; optionally evict and add new mapping
             if (dataStructure.getSize() >= MAX_SIZE) {
                 dataStructure.removeLeastFrequent();
                 registerEviction();
             }
-            dataStructure.add(new LFUCacheEntry<>(key, value));
+            dataStructure.addFresh(key, value);
             registerInsertion();
         }
 
@@ -100,14 +96,12 @@ class LFUCache<K, V> extends AbstractCache<K, V> {
         V value = null;
 
         if (dataStructure.contains(key)) {
-            LFUCacheEntry<K, V> entry = dataStructure.get(key);
-            value = entry.getValue();
-
+            value = dataStructure.get(key);
             if (value == null) {
-                dataStructure.remove(entry);
+                dataStructure.remove(key);
                 registerNearHit();
             } else {
-                dataStructure.incrementFrequency(entry);
+                dataStructure.incrementFrequency(key);
                 registerHit();
             }
         } else {

@@ -171,7 +171,10 @@ class LRUCacheTests {
     void whenStoringDataThatIsTooBigToBeHeldInMemory_thenNearHitsWillStartAppearing() {
 
         // Grab 25% of memory with every new cached value
-        final long VALUE_SIZE = Runtime.getRuntime().maxMemory() / 4;
+        long maxMemory = Runtime.getRuntime().maxMemory();
+        long totalMemory = Runtime.getRuntime().totalMemory();
+        long freeMemory = Runtime.getRuntime().freeMemory();
+        final long VALUE_SIZE = (freeMemory + (maxMemory - totalMemory)) / 4;
 
         // Put enough values into cache to make sure they start being GC'd
         for (int i = 0; i < 100; ++i)
