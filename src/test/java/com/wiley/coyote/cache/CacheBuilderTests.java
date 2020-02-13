@@ -18,7 +18,7 @@ class CacheBuilderTests {
                 .build();
         assertThat(
                 cache,
-                is(instanceOf(LRUCache.class))
+                is(instanceOf(BasicCache.class))
         );
         assertThat(
                 cache.stats().getMaxSize(),
@@ -44,7 +44,7 @@ class CacheBuilderTests {
                 .build();
         assertThat(
                 cache,
-                is(instanceOf(LRUCache.class))
+                is(instanceOf(BasicCache.class))
         );
         assertThat(
                 cache.stats().getMaxSize(),
@@ -70,7 +70,7 @@ class CacheBuilderTests {
                 .build();
         assertThat(
                 cache,
-                is(instanceOf(LFUCache.class))
+                is(instanceOf(BasicCache.class))
         );
         assertThat(
                 cache.stats().getMaxSize(),

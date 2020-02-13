@@ -1,8 +1,9 @@
 package com.wiley.coyote.cache;
 
 /**
- * Implements an in-memory cache employing the LRU (least recently used)
- * eviction strategy.
+ * Implements an in-memory cache employing either the LRU (least recently used)
+ * or the LFU (least frequently used) eviction strategy, depending on the
+ * constructor arguments.
  * <p>
  * The cache accepts both null keys and null values. The values are stored as
  * soft references, which allows them to be garbage collected whenever the JVM
@@ -14,7 +15,7 @@ package com.wiley.coyote.cache;
  * @param <K>   the key type
  * @param <V>   the value type
  */
-class LRUCache<K, V> extends AbstractCache<K, V> {
+class BasicCache<K, V> extends AbstractCache<K, V> {
 
     /**
      * Cache capacity.
@@ -22,9 +23,14 @@ class LRUCache<K, V> extends AbstractCache<K, V> {
     private final int MAX_SIZE;
 
     /**
-     * The LRU data structure.
+     * Cache eviction strategy.
      */
-    private final LRUCacheDataStructure<K, V> dataStructure;
+    private final EvictionStrategy EVICTION_STRATEGY;
+
+    /**
+     * The LFU data structure.
+     */
+    private final CacheDataStructure<K, V> dataStructure;
 
     /**
      * The cache stats companion object.
@@ -32,10 +38,10 @@ class LRUCache<K, V> extends AbstractCache<K, V> {
     private final Stats stats;
 
     /**
-     * The implementation of the {@link com.wiley.coyote.cache.Cache.Stats}
-     * interface for the LRU cache.
+     * The implementation of the {@link Stats}
+     * interface for the LFU cache.
      */
-    private class LRUStats extends AbstractStats {
+    private class BasicStats extends AbstractStats {
 
         @Override
         public int getSize() {
@@ -49,7 +55,7 @@ class LRUCache<K, V> extends AbstractCache<K, V> {
 
         @Override
         public EvictionStrategy getEvictionStrategy() {
-            return EvictionStrategy.LRU;
+            return EVICTION_STRATEGY;
         }
     }
 
@@ -58,15 +64,30 @@ class LRUCache<K, V> extends AbstractCache<K, V> {
      *
      * @param maxSize   the maximum number of elements kept
      */
-    LRUCache(int maxSize) {
+    BasicCache(int maxSize, EvictionStrategy evictionStrategy) {
         if (maxSize <= 0) {
             throw new IllegalCacheParameterException(
                     String.format("Attempted to create cache with non-positive max size (%d)", maxSize)
             );
         }
         this.MAX_SIZE = maxSize;
-        this.dataStructure = new LRUCacheDataStructureImplementation<>(MAX_SIZE);
-        this.stats = new LRUStats();
+        this.EVICTION_STRATEGY = evictionStrategy;
+        switch (EVICTION_STRATEGY) {
+            case LRU:
+                this.dataStructure = new LRUCacheDataStructure<>(MAX_SIZE);
+                break;
+            case LFU:
+                this.dataStructure = new LFUCacheDataStructure<>(MAX_SIZE);
+                break;
+            default:
+                throw new IllegalCacheParameterException(
+                        String.format(
+                                "Attempted to create cache with unsupported eviction strategy (%s)",
+                                evictionStrategy.toString()
+                        )
+                );
+        }
+        this.stats = new BasicStats();
     }
 
     @Override
@@ -81,10 +102,10 @@ class LRUCache<K, V> extends AbstractCache<K, V> {
         } else {
             // Key is not mapped; optionally evict and add new mapping
             if (dataStructure.getSize() >= MAX_SIZE) {
-                dataStructure.removeLeastRecent();
+                dataStructure.evict();
                 registerEviction();
             }
-            dataStructure.addFresh(key, value);
+            dataStructure.add(key, value);
             registerInsertion();
         }
 
@@ -101,7 +122,7 @@ class LRUCache<K, V> extends AbstractCache<K, V> {
                 dataStructure.remove(key);
                 registerNearHit();
             } else {
-                dataStructure.makeMostRecent(key);
+                dataStructure.elevate(key);
                 registerHit();
             }
         } else {
