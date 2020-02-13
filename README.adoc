@@ -9,7 +9,7 @@
 
 ++++
 <p align="center">
-<em>Excercise implementation of an in-memory cache with Java 8</em>
+<em>Exercise implementation of an in-memory cache with Java 8</em>
 </p>
 ++++
 
@@ -19,7 +19,7 @@
 </p>
 ++++
 
-This is an excercise project, written in Java 8 and built with Maven.
+This is an exercise project, written in Java 8 and built with Maven.
 It implements a non-thread-safe version of an in-memory cache for storing and retrieving Java objects.
 
 toc::[]
