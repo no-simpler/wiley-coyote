@@ -3,13 +3,16 @@ package com.wiley.coyote.cache;
 /**
  * Represents an instance of an in-memory cache, characterized by its maximum
  * capacity and its eviction strategy (LRU or LFU).
- *
+ * <p>
  * This interface emulates a subset of the {@link java.util.Map} interface, and
  * follows its contract where applicable. The implementations are not required
  * to be thread-safe. Also, as part of the contract of this interface, the
  * implementations must not prevent the stored values from being garbage
  * collected in case of memory shortage.
- *
+ * <p>
+ * It is the user's responsibility to ensure that the keys are of immutable
+ * type and have a well defined hashCode method.
+ * <p>
  * The interface houses a few static factory methods that employ
  * {@link CacheBuilder} class to produce new cache instances.
  *

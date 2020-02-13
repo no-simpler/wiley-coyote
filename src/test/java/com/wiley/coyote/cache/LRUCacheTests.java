@@ -83,6 +83,7 @@ class LRUCacheTests {
         }
 
         // Check stats
+        assertThat(cache.stats().getSize(), is(100));
         assertThat(cache.stats().getNumberOfPutRequests(), is(160L));
         assertThat(cache.stats().getNumberOfGetRequests(), is(20L));
         assertThat(cache.stats().getNumberOfHits(), is(5L));
@@ -185,5 +186,21 @@ class LRUCacheTests {
                 cache.stats().getNumberOfNearHits(),
                 is(greaterThan(0L))
         );
+    }
+
+    @Test
+    @DisplayName("Null key")
+    void whenUsingNullKey_thenBehaviorIsAsUsual() {
+        MemoryHogger value = MemoryHogger.bytes(1);
+        cache.put(null, value);
+        assertThat(cache.get(null), is(equalTo(value)));
+    }
+
+    @Test
+    @DisplayName("Null value")
+    void whenUsingNullValue_thenBehaviorIsAsUsual() {
+        MemoryHogger value = null;
+        cache.put(null, value);
+        assertThat(cache.get(null), is(equalTo(value)));
     }
 }

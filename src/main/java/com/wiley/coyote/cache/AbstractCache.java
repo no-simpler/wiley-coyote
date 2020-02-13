@@ -1,5 +1,13 @@
 package com.wiley.coyote.cache;
 
+/**
+ * Implements the cache stats and exposes to the extending classes a small API
+ * of protected methods, as a way to register cache events (for example, an
+ * incoming get request).
+ *
+ * @param <K>   the key type
+ * @param <V>   the value type
+ */
 abstract class AbstractCache<K, V> implements Cache<K, V> {
 
     private long numberOfHits = 0L;
@@ -38,6 +46,10 @@ abstract class AbstractCache<K, V> implements Cache<K, V> {
         ++numberOfUpdates;
     }
 
+    /**
+     * Implements the majority of {@link com.wiley.coyote.cache.Cache.Stats}
+     * methods.
+     */
     protected abstract class AbstractStats implements Stats {
 
         @Override

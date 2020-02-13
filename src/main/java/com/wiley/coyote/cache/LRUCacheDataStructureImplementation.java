@@ -4,11 +4,24 @@ import java.lang.ref.SoftReference;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * The LRU cache data structure that provides constant-time implementation of
+ * the standard CRUD operations.
+ * <p>
+ * The implementation encapsulates key-value mappings in Entries. A doubly-
+ * linked list of all Entries is maintained, ordered by last access time.
+ * Whenever an entry is accessed it is moved to the front of the list.
+ * <p>
+ * A hash map is maintained that maps a key to its entry.
+ *
+ * @param <K>   the key type
+ * @param <V>   the value type
+ */
 class LRUCacheDataStructureImplementation<K, V> implements LRUCacheDataStructure<K, V> {
 
     private final boolean DEBUG_MODE = false;
 
-    private final Map<K, LRUCacheEntry<K, V>> map;
+    private final Map<K, LRUCacheEntry<K, V>> mapKeyToEntry;
 
     private LRUCacheEntry<K, V> head;
 
@@ -35,7 +48,7 @@ class LRUCacheDataStructureImplementation<K, V> implements LRUCacheDataStructure
     }
 
     LRUCacheDataStructureImplementation(int maxSize) {
-        map = new HashMap<>(maxSize);
+        mapKeyToEntry = new HashMap<>(maxSize);
         head = null;
         tail = null;
         size = 0;
@@ -51,7 +64,7 @@ class LRUCacheDataStructureImplementation<K, V> implements LRUCacheDataStructure
         ensureConsistency();
         if (newEntry == null)
             throw new CacheLogicException("Attempted to add null entry to DS");
-        if (map.containsKey(newEntry.key))
+        if (mapKeyToEntry.containsKey(newEntry.key))
             throw new CacheLogicException("Attempted to add entry that is already recorded in DS");
         if (size == 0) {
             head = newEntry;
@@ -63,7 +76,7 @@ class LRUCacheDataStructureImplementation<K, V> implements LRUCacheDataStructure
             newEntry.right = temp;
             if (temp != null) temp.left = newEntry;
         }
-        map.put(newEntry.key, newEntry);
+        mapKeyToEntry.put(newEntry.key, newEntry);
         ++size;
         ensureContinuity();
     }
@@ -75,7 +88,7 @@ class LRUCacheDataStructureImplementation<K, V> implements LRUCacheDataStructure
             throw new CacheLogicException("Attempted to remove null entry from DS");
         if (size == 0)
             throw new CacheLogicException("Attempted to remove from zero-size DS");
-        if (!map.containsKey(entry.key))
+        if (!mapKeyToEntry.containsKey(entry.key))
             throw new CacheLogicException("Attempted to remove entry that is not recorded in DS");
         LRUCacheEntry<K, V> leftNeighbor = entry.left;
         LRUCacheEntry<K, V> rightNeighbor = entry.right;
@@ -85,9 +98,9 @@ class LRUCacheDataStructureImplementation<K, V> implements LRUCacheDataStructure
         if (entry == tail) tail = leftNeighbor;
         entry.left = null;
         entry.right = null;
-        map.remove(entry.key);
+        mapKeyToEntry.remove(entry.key);
         --size;
-        if (map.size() != size)
+        if (mapKeyToEntry.size() != size)
             throw new CacheLogicException("Mismatched DS size after removal of entry");
         ensureContinuity();
     }
@@ -101,16 +114,14 @@ class LRUCacheDataStructureImplementation<K, V> implements LRUCacheDataStructure
     public boolean contains(K key) {
         ensureConsistency();
         ensureContinuity();
-        if (key == null)
-            throw new CacheLogicException("Attempted to check key in DS by null key");
-        return map.containsKey(key);
+        return mapKeyToEntry.containsKey(key);
     }
 
     @Override
     public LRUCacheEntry<K, V> get(K key) {
         LRUCacheEntry<K, V> entry = null;
         if (contains(key)) {
-            entry = map.get(key);
+            entry = mapKeyToEntry.get(key);
             if (entry == null)
                 throw new CacheLogicException("DS contains null entry despite not allowing it");
         }
@@ -120,7 +131,7 @@ class LRUCacheDataStructureImplementation<K, V> implements LRUCacheDataStructure
     private void ensureConsistency() {
         if (size < 0)
             throw new CacheLogicException("Size of DS is negative");
-        if (size != map.size())
+        if (size != mapKeyToEntry.size())
             throw new CacheLogicException("Sizes of map and DLL within DS do not match");
         if (size > 0 && (head == null || tail == null))
             throw new CacheLogicException("Non-empty DS has null head/tail");

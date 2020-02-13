@@ -2,19 +2,46 @@ package com.wiley.coyote.cache;
 
 import com.wiley.coyote.cache.LFUCacheDataStructureImplementation.LFUCacheEntry;
 
+/**
+ * Implements an in-memory cache employing the LFU (least frequently used)
+ * eviction strategy.
+ * <p>
+ * The cache accepts both null keys and null values. The values are stored as
+ * soft references, which allows them to be garbage collected whenever the JVM
+ * runs out of memory, unless the user retains a regular reference to the
+ * stored object.
+ * <p>
+ * This implementation is not synchronized.
+ *
+ * @param <K>   the key type
+ * @param <V>   the value type
+ */
 class LFUCache<K, V> extends AbstractCache<K, V> {
 
+    /**
+     * Cache capacity.
+     */
     private final int MAX_SIZE;
 
-    private final LFUCacheDataStructure<K, V> ds;
+    /**
+     * The LFU data structure.
+     */
+    private final LFUCacheDataStructure<K, V> dataStructure;
 
+    /**
+     * The cache stats companion object.
+     */
     private final Stats stats;
 
+    /**
+     * The implementation of the {@link com.wiley.coyote.cache.Cache.Stats}
+     * interface for the LFU cache.
+     */
     private class LFUStats extends AbstractStats {
 
         @Override
         public int getSize() {
-            return ds.getSize();
+            return dataStructure.getSize();
         }
 
         @Override
@@ -28,6 +55,11 @@ class LFUCache<K, V> extends AbstractCache<K, V> {
         }
     }
 
+    /**
+     * Initializes the stats and the data structure.
+     *
+     * @param maxSize   the maximum number of elements kept
+     */
     LFUCache(int maxSize) {
         if (maxSize <= 0) {
             throw new IllegalCacheParameterException(
@@ -35,7 +67,7 @@ class LFUCache<K, V> extends AbstractCache<K, V> {
             );
         }
         this.MAX_SIZE = maxSize;
-        this.ds = new LFUCacheDataStructureImplementation<>(MAX_SIZE);
+        this.dataStructure = new LFUCacheDataStructureImplementation<>(MAX_SIZE);
         this.stats = new LFUStats();
     }
 
@@ -43,20 +75,20 @@ class LFUCache<K, V> extends AbstractCache<K, V> {
     public V put(K key, V value) {
         V previousValue = null;
 
-        if (ds.contains(key)) {
-            LFUCacheEntry<K, V> entry = ds.get(key);
+        if (dataStructure.contains(key)) {
+            LFUCacheEntry<K, V> entry = dataStructure.get(key);
             previousValue = entry.getValue();
 
             entry.setValue(value);
 
-            ds.incrementFrequency(entry);
+            dataStructure.incrementFrequency(entry);
             registerUpdate();
         } else {
-            if (ds.getSize() >= MAX_SIZE) {
-                ds.removeLeastFrequent();
+            if (dataStructure.getSize() >= MAX_SIZE) {
+                dataStructure.removeLeastFrequent();
                 registerEviction();
             }
-            ds.add(new LFUCacheEntry<>(key, value));
+            dataStructure.add(new LFUCacheEntry<>(key, value));
             registerInsertion();
         }
 
@@ -67,15 +99,15 @@ class LFUCache<K, V> extends AbstractCache<K, V> {
     public V get(K key) {
         V value = null;
 
-        if (ds.contains(key)) {
-            LFUCacheEntry<K, V> entry = ds.get(key);
+        if (dataStructure.contains(key)) {
+            LFUCacheEntry<K, V> entry = dataStructure.get(key);
             value = entry.getValue();
 
             if (value == null) {
-                ds.remove(entry);
+                dataStructure.remove(entry);
                 registerNearHit();
             } else {
-                ds.incrementFrequency(entry);
+                dataStructure.incrementFrequency(entry);
                 registerHit();
             }
         } else {
@@ -87,7 +119,7 @@ class LFUCache<K, V> extends AbstractCache<K, V> {
 
     @Override
     public boolean containsKey(K key) {
-        return ds.contains(key);
+        return dataStructure.contains(key);
     }
 
     @Override
