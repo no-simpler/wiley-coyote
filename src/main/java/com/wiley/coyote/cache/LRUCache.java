@@ -1,7 +1,5 @@
 package com.wiley.coyote.cache;
 
-import com.wiley.coyote.cache.LRUCacheDataStructureImplementation.LRUCacheEntry;
-
 /**
  * Implements an in-memory cache employing the LRU (least recently used)
  * eviction strategy.
@@ -76,21 +74,17 @@ class LRUCache<K, V> extends AbstractCache<K, V> {
         V previousValue = null;
 
         if (dataStructure.contains(key)) {
-            LRUCacheEntry<K, V> existingEntry = dataStructure.get(key);
-            previousValue = existingEntry.getValue();
-
-            LRUCacheEntry<K, V> updatedEntry = new LRUCacheEntry<>(key, value);
-
-            dataStructure.remove(existingEntry);
-            dataStructure.addFirst(updatedEntry);
+            // Key already mapped; update value
+            previousValue = dataStructure.get(key);
+            dataStructure.replaceValue(key, value);
             registerUpdate();
         } else {
+            // Key is not mapped; optionally evict and add new mapping
             if (dataStructure.getSize() >= MAX_SIZE) {
-                dataStructure.removeLast();
+                dataStructure.removeLeastRecent();
                 registerEviction();
             }
-            LRUCacheEntry<K, V> newEntry = new LRUCacheEntry<>(key, value);
-            dataStructure.addFirst(newEntry);
+            dataStructure.addFresh(key, value);
             registerInsertion();
         }
 
@@ -100,21 +94,20 @@ class LRUCache<K, V> extends AbstractCache<K, V> {
     @Override
     public V get(K key) {
         V value = null;
+
         if (dataStructure.contains(key)) {
-            LRUCacheEntry<K, V> existingEntry = dataStructure.get(key);
-            value = existingEntry.getValue();
-
-            dataStructure.remove(existingEntry);
-
+            value = dataStructure.get(key);
             if (value == null) {
+                dataStructure.remove(key);
                 registerNearHit();
             } else {
-                dataStructure.addFirst(existingEntry);
+                dataStructure.makeMostRecent(key);
                 registerHit();
             }
         } else {
             registerMiss();
         }
+
         return value;
     }
 
