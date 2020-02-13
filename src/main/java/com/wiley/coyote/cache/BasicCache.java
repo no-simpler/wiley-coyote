@@ -28,7 +28,7 @@ class BasicCache<K, V> extends AbstractCache<K, V> {
     private final EvictionStrategy EVICTION_STRATEGY;
 
     /**
-     * The LFU data structure.
+     * The cache data structure.
      */
     private final CacheDataStructure<K, V> dataStructure;
 
@@ -38,8 +38,7 @@ class BasicCache<K, V> extends AbstractCache<K, V> {
     private final Stats stats;
 
     /**
-     * The implementation of the {@link Stats}
-     * interface for the LFU cache.
+     * The implementation of the {@link Stats} interface for this cache.
      */
     private class BasicStats extends AbstractStats {
 

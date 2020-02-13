@@ -66,7 +66,7 @@ public class CoyoteApplication {
                 if ((RNG.nextInt(100) + 1) > PERCENTAGE_OF_GETS) {
                     cache.put(
                             RNG.nextInt(KEY_RANGE),
-                            MemoryHogger.megaBytes(1 + RNG.nextInt(10))
+                            MemoryHogger.megaBytes(1 + RNG.nextInt(50))
                     );
                 } else {
                     cache.get(RNG.nextInt(KEY_RANGE));
